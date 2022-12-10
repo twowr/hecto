@@ -129,7 +129,7 @@ impl Editor {
     }
     fn process_event(&mut self) -> Result<()> {
         if let Event::Key(keyevent) = read()? {
-            if keyevent.is_ctrl('d') {
+            if keyevent.is_ctrl('q') {
                 self.quit = true;
             }
             if keyevent.is_movement() {
@@ -140,8 +140,11 @@ impl Editor {
     }
     fn process_cursor_movement(&mut self, key: KeyCode) {
         let Position { mut x, mut y } = self.cursor_position;
-        let size = self.terminal.size();
-        let colums = size.colums as usize;
+        let colums = if let Some(row) = self.document.row(y) {
+            row.len()
+        } else {
+            0
+        };
         let rows = self.document.len();
         match key {
             KeyCode::Up => y = y.saturating_sub(1),
