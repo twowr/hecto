@@ -2,7 +2,7 @@ use std::fs;
 use crate::Row;
 #[derive(Default)]
 pub struct Document {
-    rows: Vec<Row>, 
+    rows: Vec<Row>,
 }
 impl Document {
     pub fn open(file: &str) -> std::io::Result<Self> {
@@ -21,4 +21,7 @@ impl Document {
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }
+    pub fn len(&self) -> usize {
+        self.rows.len()
+    } 
 }

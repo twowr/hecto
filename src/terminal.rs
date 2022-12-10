@@ -4,6 +4,7 @@ use crossterm::terminal::{
 };
 use crossterm::execute;
 use crate::Position;
+#[derive(Debug)]
 pub struct Size {
     pub colums: u16,
     pub rows: u16,    

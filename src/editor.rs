@@ -11,6 +11,7 @@ use crossterm::event::{
 use crossterm::Result;
 use std::env;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+#[derive(Debug)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -25,6 +26,7 @@ pub struct Editor {
     quit: bool,
     cursor_position: Position,
     document: Document,
+    offset: Position,
 }
 trait InputType {
     fn is_ctrl(&self, key: char) -> bool;
@@ -49,7 +51,6 @@ impl InputType for KeyEvent {
         )
     }
 }
-
 impl Editor {
     pub fn run(&mut self) -> Result<()> {
         enable_raw_mode()?;
@@ -79,8 +80,9 @@ impl Editor {
         Self {
             terminal: Terminal::default().expect("something went wrong while initializing terminal"),
             quit: false,
-            cursor_position: Position::default(),
             document,
+            cursor_position: Position::default(),
+            offset: Position::default(),
         }
     }
     fn refresh_screen(&self) -> std::io::Result<()> {
@@ -91,7 +93,8 @@ impl Editor {
             println!("Goodbye \r");
         } else {
             self.draw_rows();
-            Terminal::move_cursor(&self.cursor_position);
+            Terminal::move_cursor(&Position { x: self.cursor_position.x.saturating_sub(self.offset.x - 4),
+                                              y: self.cursor_position.y.saturating_sub(self.offset.y), });
         }
         Terminal::show_cursor();
         Terminal::flush()
@@ -110,14 +113,13 @@ impl Editor {
         let visible_rows = self.terminal.size().rows;
         for terminal_row in 0..visible_rows - 1 {
             Terminal::clear_current_line();
-            if self.document.is_empty() && terminal_row == visible_rows/3 {
-                println!("{:3}{}\r", terminal_row, self.welcome_messages());
-           }
-            if let Some(row) = self.document.row(terminal_row as usize)  {
-                println!("{:3} {}", terminal_row, self.render_row(row));
-            } else  {
-               println!("{:3} \r", terminal_row);
-           }
+            if self.document.is_empty() && terminal_row == visible_rows/2 {
+                println!("{:3}{}\r", terminal_row + 1, self.welcome_messages());
+            } else if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
+                println!("{:3} {}", terminal_row as usize + self.offset.y + 1, self.render_row(row));
+            } else {
+                println!("{:3} \r", terminal_row + 1);
+            }
         }
     }
     pub fn render_row(&self, row: &Row) -> String {
@@ -139,18 +141,37 @@ impl Editor {
     fn process_cursor_movement(&mut self, key: KeyCode) {
         let Position { mut x, mut y } = self.cursor_position;
         let size = self.terminal.size();
+        let colums = size.colums as usize;
+        let rows = self.document.len();
         match key {
             KeyCode::Up => y = y.saturating_sub(1),
-            KeyCode::Down => if y < size.rows as usize {y = y.saturating_add(1);},
-            KeyCode::Left => if x > 4 as usize {x = x.saturating_sub(1)},
-            KeyCode::Right => if x < size.colums as usize {x = x.saturating_add(1);},
+            KeyCode::Down => if y < rows {y = y.saturating_add(1);},
+            KeyCode::Left => if x > 4 {x = x.saturating_sub(1)},
+            KeyCode::Right => if x < colums {x = x.saturating_add(1);},
             KeyCode::PageUp => y = 0,
-            KeyCode::PageDown => y = size.rows as usize,
+            KeyCode::PageDown => y = rows,
             KeyCode::Home => x = 4,
-            KeyCode::End => x = size.colums as usize,
+            KeyCode::End => x = colums,
             _ => (),
         }
-        self.cursor_position = Position { x, y }
+        self.cursor_position = Position { x, y };
+        self.scroll();
+    }
+    fn scroll(&mut self) {
+        let Position { x, y } = self.cursor_position;
+        let colum= self.terminal.size().colums as usize;
+        let row= self.terminal.size().rows as usize;
+        let mut offset = &mut self.offset;
+        if y < offset.y {
+            offset.y = y;
+        } else if y >= offset.y.saturating_add(row) {
+            offset.y = y.saturating_sub(row).saturating_add(1);
+        }
+        if x < offset.x {
+            offset.x = x;
+        } else if x >= offset.x.saturating_add(colum) {
+            offset.x = x.saturating_sub(colum).saturating_add(1);
+        }
     }
 }
 fn ded(error: std::io::Error) {
