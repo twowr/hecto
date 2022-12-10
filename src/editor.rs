@@ -93,7 +93,7 @@ impl Editor {
             println!("Goodbye \r");
         } else {
             self.draw_rows();
-            Terminal::move_cursor(&Position { x: self.cursor_position.x.saturating_sub(self.offset.x - 4),
+            Terminal::move_cursor(&Position { x: self.cursor_position.x.saturating_sub(self.offset.x).saturating_add(4),
                                               y: self.cursor_position.y.saturating_sub(self.offset.y), });
         }
         Terminal::show_cursor();
@@ -140,8 +140,8 @@ impl Editor {
     }
     fn process_cursor_movement(&mut self, key: KeyCode) {
         let Position { mut x, mut y } = self.cursor_position;
-        let colums = if let Some(row) = self.document.row(y) {
-            row.len()
+        let mut colums = if let Some(row) = self.document.row(y) {
+            row.len().saturating_add(4)
         } else {
             0
         };
@@ -156,6 +156,14 @@ impl Editor {
             KeyCode::Home => x = 4,
             KeyCode::End => x = colums,
             _ => (),
+        }
+        colums = if let Some(row) = self.document.row(y) {
+            row.len().saturating_add(4)
+        } else {
+            0
+        };
+        if x > colums {
+            x = colums;
         }
         self.cursor_position = Position { x, y };
         self.scroll();
