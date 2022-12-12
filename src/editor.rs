@@ -1,6 +1,7 @@
 use crate::Terminal;
 use crate::Document;
 use crate::Row;
+use std::cmp;
 use std::time::Duration;
 use crossterm::terminal::enable_raw_mode;
 use crossterm::event::{
@@ -139,6 +140,7 @@ impl Editor {
         Ok(())
     }
     fn process_cursor_movement(&mut self, key: KeyCode) {
+        let terminal_height = self.terminal.size().rows as usize;
         let Position { mut x, mut y } = self.cursor_position;
         let mut colums = if let Some(row) = self.document.row(y) {
             row.len().saturating_add(4)
@@ -146,13 +148,28 @@ impl Editor {
             0
         };
         let rows = self.document.len();
+        //PageUp and PageDown will attempt to keep the same terminal cursor height
+        //while moving by terminal_height amount of rows up or down
         match key {
             KeyCode::Up => y = y.saturating_sub(1),
-            KeyCode::Down => if y < rows {y = y.saturating_add(1);},
+            KeyCode::Down => if y < rows {y = y.saturating_add(1)},
             KeyCode::Left => if x > 4 {x = x.saturating_sub(1)},
-            KeyCode::Right => if x < colums {x = x.saturating_add(1);},
-            KeyCode::PageUp => y = 0,
-            KeyCode::PageDown => y = rows,
+            KeyCode::Right => if x < colums {x = x.saturating_add(1)},
+            KeyCode::PageUp => if y > 0 {
+                y = y.saturating_sub(terminal_height);
+                self.offset.y = self.offset.y.saturating_sub(terminal_height);
+            },
+            KeyCode::PageDown => if y < rows {
+                //cmp::min() was used to limit cursor height range to document height through rows
+                y = cmp::min(
+                    rows.saturating_sub(terminal_height).saturating_add(y).saturating_sub(self.offset.y).saturating_add(1),
+                     y.saturating_add(terminal_height)
+                );
+                self.offset.y = cmp::min(
+                    rows.saturating_sub(terminal_height).saturating_add(1),
+                    self.offset.y.saturating_add(terminal_height)
+                );
+            },
             KeyCode::Home => x = 4,
             KeyCode::End => x = colums,
             _ => (),
