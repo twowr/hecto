@@ -26,7 +26,7 @@ impl Terminal {
         &self.size
     }
     pub fn clear_screen() {
-        execute!(stdout(), Clear(ClearType::All)).unwrap();
+        execute!(stdout(), Clear(ClearType::Purge), Clear(ClearType::All)).unwrap();
     }
     pub fn clear_current_line() {
         execute!(stdout(), Clear(ClearType::CurrentLine)).unwrap();
