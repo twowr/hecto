@@ -19,7 +19,7 @@ pub struct Position {
 }
 impl Default for Position {
     fn default() -> Self {
-        Position { x: 4, y: 0 }
+        Position { x: 0, y: 0 }
     }
 }
 pub struct Editor {
