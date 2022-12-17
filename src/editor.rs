@@ -117,15 +117,16 @@ impl Editor {
             if self.document.is_empty() && terminal_row == visible_rows/2 {
                 println!("{:3}{}\r", terminal_row + 1, self.welcome_messages());
             } else if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
-                println!("{:3} {}", terminal_row as usize + self.offset.y + 1, self.render_row(row));
+                println!("{:3} {}\r", (terminal_row as usize).saturating_add(self.offset.y) + 1, self.render_row(row));
             } else {
                 println!("{:3} \r", terminal_row + 1);
             }
         }
     }
     pub fn render_row(&self, row: &Row) -> String {
-        let start = 0;
-        let end = self.terminal.size().colums as usize;
+        let offset = self.offset.x;
+        let start = 0 + offset;
+        let end = self.terminal.size().colums as usize + offset;
         row.render(start, end)
     }
     fn process_event(&mut self) -> Result<()> {
@@ -143,24 +144,44 @@ impl Editor {
         let terminal_height = self.terminal.size().rows as usize;
         let Position { mut x, mut y } = self.cursor_position;
         let mut colums = if let Some(row) = self.document.row(y) {
-            row.len().saturating_add(4)
+            row.len()
         } else {
             0
         };
         let rows = self.document.len();
         //PageUp and PageDown will attempt to keep the same terminal cursor height
         //while moving by terminal_height amount of rows up or down
+        //cmp::min() was used to limit cursor height range to document height through rows
         match key {
             KeyCode::Up => y = y.saturating_sub(1),
             KeyCode::Down => if y < rows {y = y.saturating_add(1)},
-            KeyCode::Left => if x > 4 {x = x.saturating_sub(1)},
-            KeyCode::Right => if x < colums {x = x.saturating_add(1)},
+            KeyCode::Left => {
+                if x == 0 {
+                     if y != y.saturating_sub(1) {
+                        y = y.saturating_sub(1);
+                        if let Some(row) = self.document.row(y) {x = row.len()};
+                     }
+                    
+                } else {
+                    x = x.saturating_sub(1);
+                }
+            },
+            KeyCode::Right => {
+                if x == colums {
+                    if y != cmp::min(terminal_height, y.saturating_add(1)) {
+                        y = cmp::min(terminal_height, y.saturating_add(1));
+                        x = 0;
+                    }
+                    
+                } else {
+                    x = x.saturating_add(1);
+                }
+            },
             KeyCode::PageUp => if y > 0 {
                 y = y.saturating_sub(terminal_height);
                 self.offset.y = self.offset.y.saturating_sub(terminal_height);
             },
             KeyCode::PageDown => if y < rows {
-                //cmp::min() was used to limit cursor height range to document height through rows
                 y = cmp::min(
                     rows.saturating_sub(terminal_height).saturating_add(y).saturating_sub(self.offset.y).saturating_add(1),
                      y.saturating_add(terminal_height)
@@ -170,12 +191,12 @@ impl Editor {
                     self.offset.y.saturating_add(terminal_height)
                 );
             },
-            KeyCode::Home => x = 4,
+            KeyCode::Home => x = 0,
             KeyCode::End => x = colums,
             _ => (),
         }
         colums = if let Some(row) = self.document.row(y) {
-            row.len().saturating_add(4)
+            row.len()
         } else {
             0
         };
@@ -187,8 +208,8 @@ impl Editor {
     }
     fn scroll(&mut self) {
         let Position { x, y } = self.cursor_position;
-        let colum= self.terminal.size().colums as usize;
-        let row= self.terminal.size().rows as usize;
+        let colum = self.terminal.size().colums as usize;
+        let row = self.terminal.size().rows as usize;
         let mut offset = &mut self.offset;
         if y < offset.y {
             offset.y = y;
