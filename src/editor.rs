@@ -117,7 +117,7 @@ impl Editor {
             if self.document.is_empty() && terminal_row == visible_rows/2 {
                 println!("{:3}{}\r", terminal_row + 1, self.welcome_messages());
             } else if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
-                println!("{:3} {}\r", (terminal_row as usize).saturating_add(self.offset.y) + 1, self.render_row(row));
+                println!("{:3} {}\r", terminal_row as usize + self.offset.y + 1, self.render_row(row));
             } else {
                 println!("{:3} \r", terminal_row + 1);
             }
