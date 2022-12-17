@@ -125,9 +125,9 @@ impl Editor {
     }
     pub fn render_row(&self, row: &Row) -> String {
         let offset = self.offset.x;
-        let start = 0 + offset;
-        let end = self.terminal.size().colums as usize + offset;
-        row.render(start, end)
+        let start = 0;
+        let end = (self.terminal.size().colums as usize).saturating_sub(1);
+        row.render(start + offset, end + offset)
     }
     fn process_event(&mut self) -> Result<()> {
         if let Event::Key(keyevent) = read()? {
