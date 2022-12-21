@@ -10,6 +10,8 @@ use crossterm::event::{
     KeyModifiers, KeyCode, KeyEvent,
 };
 use crossterm::Result;
+use crossterm::style::Color;
+const STATUS_BG_COLOR: Color = Color::Rgb { r: 239, g: 239, b:239 };
 use std::env;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Debug)]
@@ -94,6 +96,8 @@ impl Editor {
             println!("Goodbye \r");
         } else {
             self.draw_rows();
+            self.draw_status_bar();
+            self.draw_message_bar();
             Terminal::move_cursor(&Position { x: self.cursor_position.x.saturating_sub(self.offset.x).saturating_add(4),
                                               y: self.cursor_position.y.saturating_sub(self.offset.y), });
         }
@@ -126,9 +130,18 @@ impl Editor {
     pub fn render_row(&self, row: &Row) -> String {
         let offset = self.offset.x;
         let start = 0;
-        let end = (self.terminal.size().colums as usize).saturating_sub(1);
+        let end = (self.terminal.size().colums as usize).saturating_sub(4);
         row.render(start + offset, end + offset)
     }
+    fn draw_status_bar(&self) {
+        let spaces = " ".repeat(self.terminal.size().colums as usize);
+        Terminal::set_bg_color(STATUS_BG_COLOR);
+        println!("{}\r", spaces);
+        Terminal::reset_bg_color();
+    }
+    fn draw_message_bar(&self) {
+        Terminal::clear_current_line();
+    } 
     fn process_event(&mut self) -> Result<()> {
         if let Event::Key(keyevent) = read()? {
             if keyevent.is_ctrl('q') {

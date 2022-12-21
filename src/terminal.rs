@@ -2,6 +2,7 @@ use std::io::{self, stdout, Write};
 use crossterm::terminal::{
     Clear, ClearType,
 };
+use crossterm::style::{SetBackgroundColor, Color, ResetColor};
 use crossterm::execute;
 use crate::Position;
 #[derive(Debug)]
@@ -30,6 +31,12 @@ impl Terminal {
     }
     pub fn clear_current_line() {
         execute!(stdout(), Clear(ClearType::CurrentLine)).unwrap();
+    }
+    pub fn set_bg_color(color: Color) {
+        execute!(stdout(), SetBackgroundColor(color)).unwrap();
+    }
+    pub fn reset_bg_color() {
+        execute!(stdout(), ResetColor).unwrap();
     }
     #[allow(clippy::cast_possible_truncation)]
     pub fn move_cursor(position: &Position) {
