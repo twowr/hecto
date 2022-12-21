@@ -18,7 +18,7 @@ impl Terminal {
         Ok(Self {
             size: Size { 
                 colums: size.0,
-                rows: size.1,
+                rows: size.1.saturating_sub(2),
             },
         })
     }

@@ -112,7 +112,7 @@ impl Editor {
     }
     fn draw_rows(&self) {
         let visible_rows = self.terminal.size().rows;
-        for terminal_row in 0..visible_rows - 1 {
+        for terminal_row in 0..visible_rows {
             Terminal::clear_current_line();
             if self.document.is_empty() && terminal_row == visible_rows/2 {
                 println!("{:3}{}\r", terminal_row + 1, self.welcome_messages());
