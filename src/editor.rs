@@ -202,6 +202,11 @@ impl Editor {
                 self.document.insert(&self.cursor_position, character);
                 self.move_cursor(KeyCode::Right);
             }
+            if let KeyCode::Enter = keyevent.code {
+                self.document.insert(&self.cursor_position, '\n');
+                self.move_cursor(KeyCode::Down);
+                self.move_cursor(KeyCode::Home);
+            }
             if let KeyCode::Backspace = keyevent.code {
                 if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
                     self.move_cursor(KeyCode::Left);

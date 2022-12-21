@@ -28,6 +28,10 @@ impl Document {
         self.rows.len()
     }
     pub fn insert(&mut self, pos: &Position, c: char) {
+        if c == '\n' {
+            self.insert_line_break(pos);
+            return;
+        }
         if pos.y == self.len() {
             let mut row = Row::default();
             row.insert(0, c);
@@ -36,6 +40,17 @@ impl Document {
             let row = self.rows.get_mut(pos.y).unwrap();
             row.insert(pos.x, c);
         }
+    }
+    pub fn insert_line_break(&mut self, pos: &Position) {
+        if pos.y > self.len() {
+            return;
+        }
+        if pos.y == self.len() {
+            self.rows.push(Row::default());
+            return;
+        }
+        let new_row = self.rows.get_mut(pos.y).unwrap().split(pos.x);
+        self.rows.insert(pos.y + 1, new_row);
     }
     pub fn delete(&mut self, pos: &Position) {
         let len = self.len();
