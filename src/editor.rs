@@ -2,7 +2,7 @@ use crate::Terminal;
 use crate::Document;
 use crate::Row;
 use std::cmp;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use crossterm::terminal::enable_raw_mode;
 use crossterm::event::{
     poll, read,
@@ -25,12 +25,25 @@ impl Default for Position {
         Position { x: 0, y: 0 }
     }
 }
+struct StatusMessage {
+    text: String,
+    time: Instant,
+}
+impl StatusMessage {
+    fn from(message: String) -> Self {
+        Self {
+            time: Instant::now(),
+            text: message,
+        }
+    }
+} 
 pub struct Editor {
     terminal: Terminal,
     quit: bool,
     cursor_position: Position,
     document: Document,
     offset: Position,
+    status_message: StatusMessage,
 }
 trait InputType {
     fn is_ctrl(&self, key: char) -> bool;
@@ -76,8 +89,16 @@ impl Editor {
     }
     pub fn default() -> Self {
         let args: Vec<String> = env::args().collect();
+        let mut initial_status = String::from("HELP: Ctrl-Q = quit");
         let document = if args.len() > 1 {
-            Document::open(&args[1]).unwrap_or_default()
+            let file_name = &args[1];
+            let doc = Document::open(&file_name);
+            if doc.is_ok() {
+                doc.unwrap()
+            } else {
+                initial_status = format!("ERR: Could not open file: {}", file_name);
+                Document::default()
+            }
         } else {
             Document::default()
         };
@@ -87,6 +108,7 @@ impl Editor {
             document,
             cursor_position: Position::default(),
             offset: Position::default(),
+            status_message: StatusMessage::from(initial_status)
         }
     }
     fn refresh_screen(&self) -> std::io::Result<()> {
@@ -143,9 +165,16 @@ impl Editor {
             file_name = "  ".to_string() + &file_name[(file_name.len() - 18)..file_name.len()].to_string();
         }
         status = format!("{} | {} lines", file_name, self.document.len());
-        if colums > status.len() {
-            status.push_str(&" ".repeat(colums - status.len()));
+        let line_indicator = format!(
+            "{}/{}",
+            self.cursor_position.y.saturating_add(1),
+            self.document.len(),
+        ); 
+        let total_len = status.len() + line_indicator.len();
+        if colums > total_len {
+           status.push_str(&" ".repeat(colums - total_len));
         }
+        status = format!("{}{}", status, line_indicator);
         status.truncate(colums);
         Terminal::set_bg_color(STATUS_BG_COLOR);
         Terminal::set_fg_color(STATUS_FG_COLOR);
@@ -154,6 +183,12 @@ impl Editor {
     }
     fn draw_message_bar(&self) {
         Terminal::clear_current_line();
+        let message = &self.status_message;
+        if Instant::now() - message.time < Duration::new(5, 0) {
+            let mut text = message.text.clone();
+            text.truncate(self.terminal.size().colums as usize);
+            print!("{}", text);
+        } 
     } 
     fn process_event(&mut self) -> Result<()> {
         if let Event::Key(keyevent) = read()? {
