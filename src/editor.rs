@@ -140,7 +140,7 @@ impl Editor {
         let mut file_name = "[Untitled]".to_string();
         if let Some(name) = &self.document.file_name {
             file_name = name.clone();
-            file_name.truncate(20);
+            file_name = "  ".to_string() + &file_name[(file_name.len() - 18)..file_name.len()].to_string();
         }
         status = format!("{} | {} lines", file_name, self.document.len());
         if colums > status.len() {
