@@ -11,6 +11,7 @@ use crossterm::event::{
 };
 use crossterm::Result;
 use crossterm::style::Color;
+const STATUS_FG_COLOR: Color = Color::Rgb { r: 63, g: 63, b:63 };
 const STATUS_BG_COLOR: Color = Color::Rgb { r: 239, g: 239, b:239 };
 use std::env;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -134,10 +135,22 @@ impl Editor {
         row.render(start + offset, end + offset)
     }
     fn draw_status_bar(&self) {
-        let spaces = " ".repeat(self.terminal.size().colums as usize);
+        let colums = self.terminal.size().colums as usize;
+        let mut status;
+        let mut file_name = "[Untitled]".to_string();
+        if let Some(name) = &self.document.file_name {
+            file_name = name.clone();
+            file_name.truncate(20);
+        }
+        status = format!("{} | {} lines", file_name, self.document.len());
+        if colums > status.len() {
+            status.push_str(&" ".repeat(colums - status.len()));
+        }
+        status.truncate(colums);
         Terminal::set_bg_color(STATUS_BG_COLOR);
-        println!("{}\r", spaces);
-        Terminal::reset_bg_color();
+        Terminal::set_fg_color(STATUS_FG_COLOR);
+        println!("{}\r", status);
+        Terminal::reset_color();
     }
     fn draw_message_bar(&self) {
         Terminal::clear_current_line();

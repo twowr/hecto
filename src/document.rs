@@ -3,6 +3,7 @@ use crate::Row;
 #[derive(Default)]
 pub struct Document {
     rows: Vec<Row>,
+    pub file_name: Option<String>,
 }
 impl Document {
     pub fn open(file: &str) -> std::io::Result<Self> {
@@ -13,6 +14,7 @@ impl Document {
         }
         Ok(Self {
             rows,
+            file_name: Some(file.to_string()),
         })
     }
     pub fn row(&self, index: usize) -> Option<&Row> {
