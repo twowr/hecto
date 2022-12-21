@@ -181,8 +181,8 @@ impl Editor {
             },
             KeyCode::Right => {
                 if x == colums {
-                    if y != cmp::min(terminal_height, y.saturating_add(1)) {
-                        y = cmp::min(terminal_height, y.saturating_add(1));
+                    if y != cmp::min(rows, y.saturating_add(1)) {
+                        y = cmp::min(rows, y.saturating_add(1));
                         x = 0;
                     }
                     
