@@ -38,10 +38,17 @@ impl Document {
         }
     }
     pub fn delete(&mut self, pos: &Position) {
-        if pos.y >= self.len() {
+        let len = self.len();
+        if pos.y >= len {
             return;
         }
-        let row = self.rows.get_mut(pos.y).unwrap();
-        row.delete(pos.x);
+        if pos.x == self.rows.get_mut(pos.y).unwrap().len() && pos.y < len - 1 {
+            let next_row = self.rows.remove(pos.y + 1);
+            let row = self.rows.get_mut(pos.y).unwrap();
+            row.append(next_row);
+        } else {
+            let row = self.rows.get_mut(pos.y).unwrap();
+            row.delete(pos.x);
+        }
     }
 }

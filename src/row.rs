@@ -57,6 +57,10 @@ impl Row {
             self.string = result;
         }
     }
+    pub fn append(&mut self, next: Row) {
+        self.string = format!("{}{}", self.string, next.string);
+        self.update_len();
+    }
     fn update_len(&mut self) {
         self.len = self.string[..].graphemes(true).count();
     }
