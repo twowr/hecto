@@ -9,7 +9,6 @@ use crossterm::event::{
     Event,
     KeyModifiers, KeyCode, KeyEvent,
 };
-use crossterm::Result;
 use crossterm::style::Color;
 const STATUS_FG_COLOR: Color = Color::Rgb { r: 63, g: 63, b:63 };
 const STATUS_BG_COLOR: Color = Color::Rgb { r: 239, g: 239, b:239 };
@@ -47,11 +46,15 @@ pub struct Editor {
 }
 trait InputType {
     fn is_ctrl(&self, key: char) -> bool;
+    fn is_shift_ctrl(&self, key: char) -> bool;
     fn is_movement(&self) -> bool;
 }
 impl InputType for KeyEvent {
     fn is_ctrl(&self, key: char) -> bool {
         (self.code == KeyCode::Char(key)) && (self.modifiers == KeyModifiers::CONTROL)
+    }
+    fn is_shift_ctrl(&self, key: char) -> bool {
+        (self.code == KeyCode::Char(key)) && (self.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT))
     }
     fn is_movement(&self) -> bool {
         (
@@ -69,10 +72,10 @@ impl InputType for KeyEvent {
     }
 }
 impl Editor {
-    pub fn run(&mut self) -> Result<()> {
+    pub fn run(&mut self) -> crossterm::Result<()> {
         enable_raw_mode()?;
         loop {
-            if let Result::Err(error) = self.refresh_screen() {
+            if let crossterm::Result::Err(error) = self.refresh_screen() {
                 ded(error);
             }
             if self.quit {
@@ -81,7 +84,7 @@ impl Editor {
             if !poll(Duration::from_millis(100))? {
                 continue;
             }
-            if let Result::Err(error) = self.process_event() {
+            if let crossterm::Result::Err(error) = self.process_event() {
                 ded(error);
             }
         }
@@ -89,7 +92,7 @@ impl Editor {
     }
     pub fn default() -> Self {
         let args: Vec<String> = env::args().collect();
-        let mut initial_status = String::from("HELP: Ctrl-Q = quit");
+        let mut initial_status = String::from("HELP: Ctrl+Q = quit | Ctrl+S = save");
         let document = if args.len() > 1 {
             let file_name = &args[1];
             let doc = Document::open(&file_name);
@@ -160,9 +163,9 @@ impl Editor {
         let colums = self.terminal.size().colums as usize;
         let mut status;
         let mut file_name = "[Untitled]".to_string();
-        if let Some(name) = &self.document.file_name {
+        if let Some(name) = &self.document.file {
             file_name = name.clone();
-            file_name = "  ".to_string() + &file_name[(file_name.len() - 18)..file_name.len()].to_string();
+            file_name = "  ".to_string() + &file_name[(file_name.len().saturating_sub(18))..file_name.len()].to_string();
         }
         status = format!("{} | {} lines", file_name, self.document.len());
         let line_indicator = format!(
@@ -190,31 +193,52 @@ impl Editor {
             print!("{}", text);
         }
     } 
-    fn process_event(&mut self) -> Result<()> {
+    fn process_event(&mut self) -> crossterm::Result<()> {
         if let Event::Key(keyevent) = read()? {
             if keyevent.is_ctrl('q') {
                 self.quit = true;
             }
+            if keyevent.is_ctrl('s') {
+                if self.document.file.is_none() {
+                    self.document.file = self.promt("Save as: ").unwrap();
+                }
+                if self.document.file.is_none() {
+                    self.status_message = StatusMessage::from("Save aborted".to_string());
+                } else {
+                    self.save();
+                }
+            }
+            if keyevent.is_shift_ctrl('s') {
+                self.document.file = self.promt("Save as: ").unwrap();
+                if self.document.file.is_none() {
+                    self.status_message = StatusMessage::from("Save aborted".to_string());
+                } else {
+                    self.save();
+                }
+            }
             if keyevent.is_movement() {
                 self.move_cursor(keyevent.code);
             }
-            if let KeyCode::Char(character) = keyevent.code {
-                self.document.insert(&self.cursor_position, character);
-                self.move_cursor(KeyCode::Right);
-            }
-            if let KeyCode::Enter = keyevent.code {
-                self.document.insert(&self.cursor_position, '\n');
-                self.move_cursor(KeyCode::Down);
-                self.move_cursor(KeyCode::Home);
-            }
-            if let KeyCode::Backspace = keyevent.code {
-                if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
-                    self.move_cursor(KeyCode::Left);
+            match keyevent.code {
+                KeyCode::Char(character) => {
+                    self.document.insert(&self.cursor_position, character);
+                    self.move_cursor(KeyCode::Right);
+                },
+                KeyCode::Enter => {
+                    self.document.insert(&self.cursor_position, '\n');
+                    self.move_cursor(KeyCode::Down);
+                    self.move_cursor(KeyCode::Home);
+                },
+                KeyCode::Backspace => {
+                    if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
+                        self.move_cursor(KeyCode::Left);
+                        self.document.delete(&self.cursor_position);
+                    }
+                },
+                KeyCode::Delete => {
                     self.document.delete(&self.cursor_position);
-                }
-            }
-            if let KeyCode::Delete = keyevent.code {
-                self.document.delete(&self.cursor_position);
+                },
+                _ => (),
             }
         }
         Ok(())
@@ -297,6 +321,49 @@ impl Editor {
             offset.x = x;
         } else if x >= offset.x.saturating_add(colum) {
             offset.x = x.saturating_sub(colum).saturating_add(1);
+        }
+    }
+    fn promt(&mut self, promt: &str) -> Result<Option<String>, std::io::Error> {
+        let mut result = String::new();
+        loop {
+            self.status_message = StatusMessage::from(format!("{}{}", promt, result));
+            self.refresh_screen()?;
+            if let Event::Key(keyevent) = read()? {
+                match keyevent.code {
+                    KeyCode::Enter => {
+                        break;
+                    },
+                    KeyCode::Char(c) => {
+                        if !keyevent.modifiers.contains(KeyModifiers::CONTROL) {
+                            result.push(c);
+                        }
+                    },
+                    KeyCode::Backspace => {
+                        if !result.is_empty() {
+                            result.truncate(result.len() - 1);
+                        }
+                    },
+                    KeyCode::Esc => {
+                        result.truncate(0);
+                        break;
+                    }
+                    _ => (),
+                }
+            }
+        }
+        self.status_message = StatusMessage::from(String::new());
+        if result.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(result))
+    }
+    fn save(&mut self) {
+        if self.document.save().is_ok() {
+            self.status_message = 
+                StatusMessage::from("Saved successfully".to_string());
+        } else {
+            self.status_message =
+                StatusMessage::from("Error occured while saving file".to_string());
         }
     }
 }
