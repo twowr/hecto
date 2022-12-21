@@ -57,16 +57,6 @@ impl Row {
             self.string = result;
         }
     }
-    pub fn backspace(&mut self, at: usize) {
-        if at > self.len() {
-            return;
-        } else {
-            let mut result: String = self.string[..].graphemes(true).take(at - 1).collect();
-            let remainder: String = self.string[..].graphemes(true).skip(at).collect();
-            result.push_str(&remainder);
-            self.string = result;
-        }
-    }
     fn update_len(&mut self) {
         self.len = self.string[..].graphemes(true).count();
     }

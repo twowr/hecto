@@ -203,8 +203,10 @@ impl Editor {
                 self.move_cursor(KeyCode::Right);
             }
             if let KeyCode::Backspace = keyevent.code {
-                self.document.backspace(&self.cursor_position);
-                self.move_cursor(KeyCode::Left);
+                if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
+                    self.move_cursor(KeyCode::Left);
+                    self.document.delete(&self.cursor_position);
+                }
             }
             if let KeyCode::Delete = keyevent.code {
                 self.document.delete(&self.cursor_position);

@@ -44,11 +44,4 @@ impl Document {
         let row = self.rows.get_mut(pos.y).unwrap();
         row.delete(pos.x);
     }
-    pub fn backspace(&mut self, pos: &Position) {
-        if pos.y >= self.len() {
-            return;
-        }
-        let row = self.rows.get_mut(pos.y).unwrap();
-        row.backspace(pos.x);
-    }
 }
