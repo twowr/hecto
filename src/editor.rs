@@ -188,7 +188,7 @@ impl Editor {
             let mut text = message.text.clone();
             text.truncate(self.terminal.size().colums as usize);
             print!("{}", text);
-        } 
+        }
     } 
     fn process_event(&mut self) -> Result<()> {
         if let Event::Key(keyevent) = read()? {
@@ -196,12 +196,23 @@ impl Editor {
                 self.quit = true;
             }
             if keyevent.is_movement() {
-                self.process_cursor_movement(keyevent.code);
+                self.move_cursor(keyevent.code);
+            }
+            if let KeyCode::Char(character) = keyevent.code {
+                self.document.insert(&self.cursor_position, character);
+                self.move_cursor(KeyCode::Right);
+            }
+            if let KeyCode::Backspace = keyevent.code {
+                self.document.backspace(&self.cursor_position);
+                self.move_cursor(KeyCode::Left);
+            }
+            if let KeyCode::Delete = keyevent.code {
+                self.document.delete(&self.cursor_position);
             }
         }
         Ok(())
     }
-    fn process_cursor_movement(&mut self, key: KeyCode) {
+    fn move_cursor(&mut self, key: KeyCode) {
         let terminal_height = self.terminal.size().rows as usize;
         let Position { mut x, mut y } = self.cursor_position;
         let mut colums = if let Some(row) = self.document.row(y) {
@@ -222,7 +233,6 @@ impl Editor {
                         y = y.saturating_sub(1);
                         if let Some(row) = self.document.row(y) {x = row.len()};
                      }
-                    
                 } else {
                     x = x.saturating_sub(1);
                 }
@@ -233,7 +243,6 @@ impl Editor {
                         y = cmp::min(rows, y.saturating_add(1));
                         x = 0;
                     }
-                    
                 } else {
                     x = x.saturating_add(1);
                 }

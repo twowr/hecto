@@ -1,5 +1,6 @@
 use std::fs;
 use crate::Row;
+use crate::Position;
 #[derive(Default)]
 pub struct Document {
     rows: Vec<Row>,
@@ -25,5 +26,29 @@ impl Document {
     }
     pub fn len(&self) -> usize {
         self.rows.len()
-    } 
+    }
+    pub fn insert(&mut self, pos: &Position, c: char) {
+        if pos.y == self.len() {
+            let mut row = Row::default();
+            row.insert(0, c);
+            self.rows.push(row);
+        } else if pos.y < self.len() {
+            let row = self.rows.get_mut(pos.y).unwrap();
+            row.insert(pos.x, c);
+        }
+    }
+    pub fn delete(&mut self, pos: &Position) {
+        if pos.y >= self.len() {
+            return;
+        }
+        let row = self.rows.get_mut(pos.y).unwrap();
+        row.delete(pos.x);
+    }
+    pub fn backspace(&mut self, pos: &Position) {
+        if pos.y >= self.len() {
+            return;
+        }
+        let row = self.rows.get_mut(pos.y).unwrap();
+        row.backspace(pos.x);
+    }
 }
